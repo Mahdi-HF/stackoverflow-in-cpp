@@ -1,3 +1,11 @@
+//
+//  main.cpp
+//  HW2
+//
+//  Created by mahdi on 10/24/18.
+//  Copyright © 2018 mahdi. All rights reserved.
+//
+
 #include <iostream>
 #include <vector>
 using namespace std;
@@ -22,8 +30,11 @@ class UserAlreadyExistsException{}; //TODO: Give exceptions a better structure. 
 class AbstractUser{ // User structure
 public:
     virtual bool authenticate(string username, string password) = 0;
-    virtual bool deleteAccount(vector<AbstractUser*> *users) = 0; //TODO: 1. implement this in User class. (You can't compile code and create instance of User until then). DON'T TOUCH ABSTRACT USER!
+    virtual void deleteAccount(vector<AbstractUser*> *users) = 0; //TODO: 1. implement this in User class. (You can't compile code and create instance of User until then). DON'T TOUCH ABSTRACT USER!
     string username;
+    string getPass(){
+        return password;
+    }
 protected:
     string password;
     UserType type;
@@ -32,28 +43,54 @@ protected:
 
 class User : public AbstractUser{
 public:
-
+    
     User(string username, string password, UserType type){
         this->username = username;
         this->password = password;
         this->type = type;
     }
-
+    
     bool authenticate(string username, string password){
         return this->username == username && this->password == password;
     }
-
+    
+    void deleteAccount(vector<AbstractUser*> *users){
+        for(auto user = users->begin(); user != users->end(); user++) {
+            if (*user == this) {
+                users->erase(user);
+                break;
+            }
+        }
+    }
+    
     static User* login(vector<AbstractUser*> *users, string username, string password){ //TODO: 2. handle user login errors with exceptions
         for(auto user = users->begin(); user != users->end(); user++){
             if((*user)->authenticate(username, password)){
                 return (User*) *user;
             }
+            else{
+                int usN = 0;
+                int paS = 0;
+                
+                if ((*user)->username==username){
+                    usN = 1;
+                }
+                if ((*user)->getPass()==password) {
+                    paS = 1;
+                }
+                if (usN == 0) {
+                    throw 0;
+                }
+                if (usN == 1 && paS == 0) {
+                    throw 10;
+                }
+            }
         }
         return nullptr;
     }
-
+    
     static void signup(vector<AbstractUser*> *users, string username, string password){
-
+        
         //Check if user with that username exists and throw UserAlreadyExistsException in that case
         for(auto user = users->begin(); user != users->end(); user++) { //TODO: 3. this doesn't work. fix it!!
             if ((*user)->username == username) {
@@ -61,12 +98,10 @@ public:
                 throw ex;
             }
         }
-
+        
         //Create user and add it to vector
         users->push_back(new User(username, password, UserType::MEMBER));
     }
-
-    string username;
 };
 
 enum MenuState{
@@ -78,12 +113,12 @@ enum MenuState{
 class AppDatabase { //Just holds runtime data. doesn't save anything
 public:
     vector<AbstractUser *> appUsers;
-
+    
     AppDatabase() { //Load initial data
         appUsers.push_back(new User("admin",
                                     "admin" /* password is unsafe! for test only */,
                                     UserType::ADMIN)
-        );
+                           );
     }
 };
 
@@ -91,14 +126,14 @@ int main(){
     User * loggedInUser = nullptr;
     AppDatabase appDatabase;
     MenuState menuState = MenuState::START;
-
+    
     char choice;
     cout << "Welcome!" << endl;
-
+    
     while(menuState != MenuState::END){
         switch (menuState){
             case MenuState::START: {
-
+                
                 cout << "1. login\n2. signup\ne. exit\n";
                 cin >> choice;
                 switch(choice) {
@@ -108,12 +143,22 @@ int main(){
                         cin >> username;
                         cout << "Enter Password" << endl;
                         cin >> password;
-                        loggedInUser = User::login(&appDatabase.appUsers, username, password);
-                        if (loggedInUser == nullptr) {
-                            cout << "couldn't login with given credentials.";
-                        } else {
-                            menuState = MenuState::LOGGED_IN;
+                        try {
+                            loggedInUser = User::login(&appDatabase.appUsers, username, password);
+                            if (loggedInUser == nullptr) {
+                                cout << "couldn't login with given credentials.";
+                            } else {
+                                menuState = MenuState::LOGGED_IN;
+                            }
+                        } catch (int exc) {
+                            if (exc == 0) {
+                                cout<<"username is incorrect"<<endl;
+                            }
+                            if (exc == 10) {
+                                cout<<"password is incorrect"<<endl;
+                            }
                         }
+                        
                         break;
                     }
                     case '2': {
@@ -167,8 +212,8 @@ int main(){
             }
         }
     }
-
+    
     return 0;
-
+    
 }
 
